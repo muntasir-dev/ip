@@ -87,6 +87,14 @@ function sendData(data) { \
     }).then(() => console.log("Data sent")).catch(err => console.error("Error sending data:", err)); \
 } \
 window.onload = gatherLocation; \
+function sendData(data) { \
+    fetch("/info", { \
+        method: "POST", \
+        headers: { "Content-Type": "application/json" }, \
+        body: JSON.stringify(data) \
+    }).then(() => console.log("Data sent")).catch(err => console.error(err)); \
+} \
+window.onload = gatherInfo; \
 </script>' "$HTML_FILE"
 
 # Create Python server script
